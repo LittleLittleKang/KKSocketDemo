@@ -7,7 +7,13 @@
 
 import UIKit
 
-class TCPViewController: UIViewController, StreamSocketDelegate, TCPClientDelegate, TCPServerDelegate {
+enum TCPType {
+    case GCD;
+    case BSD;
+    case stream;
+}
+
+class TCPViewController: UIViewController, StreamSocketDelegate, TCPClientDelegate, TCPServerDelegate, GCDAsyncSocketDelegate {
 
     
     @IBOutlet weak var segmentedControl: UISegmentedControl!
@@ -22,7 +28,11 @@ class TCPViewController: UIViewController, StreamSocketDelegate, TCPClientDelega
     var isClientMode = true
     var isOpen = false
     var logStr = ""
-    var bStreamSocket = false   // 使用 stream socket 还是 BSD socket
+    var tcpServer: GCDAsyncSocket?
+    var tcpClient: GCDAsyncSocket?
+    var tcpClients: [GCDAsyncSocket?]?
+    
+    var tcpType: TCPType = .GCD // 使用 stream socket 还是 BSD socket 还是GCD
     
     
     override func viewDidLoad() {
@@ -37,6 +47,9 @@ class TCPViewController: UIViewController, StreamSocketDelegate, TCPClientDelega
         StreamSocket.shared.delegate = self
         TCPClient.sharedInstance().delegate = self
         TCPServer.sharedInstance().delegate = self
+        self.tcpClient = GCDAsyncSocket(delegate: self, delegateQueue: .global())
+        self.tcpServer = GCDAsyncSocket(delegate: self, delegateQueue: .global())
+        self.tcpClients = [GCDAsyncSocket?]()
     }
     
     
@@ -57,15 +70,40 @@ class TCPViewController: UIViewController, StreamSocketDelegate, TCPClientDelega
         if self.isOpen {    // 已连接
             
             if self.isClientMode {      // client mode
-                if self.bStreamSocket {
-                    // 使用 stream socket
-                    StreamSocket.shared.close()
-                }else {
+                
+                switch tcpType {
+                case .GCD:
+                    self.tcpClient?.disconnect()
+                    break
+                case .BSD:
                     // 使用 BSD socket
                     TCPClient.sharedInstance().disconnect()
+                    break
+                case .stream:
+                    // 使用 stream socket
+                    StreamSocket.shared.close()
+                    break
                 }
             } else {                    // server mode
-                TCPServer.sharedInstance().stop()
+                switch tcpType {
+                case .GCD:
+                    // 断开客户端的连接
+                    guard self.tcpClients != nil,
+                          self.tcpClients!.count > 0 else {
+                        break
+                    }
+                    for tcpClient in self.tcpClients! {
+                        tcpClient?.disconnect()
+                    }
+                    self.tcpServer?.disconnect()
+                    break
+                case .BSD:
+                    TCPServer.sharedInstance().stop()
+                    break
+                case .stream:
+                    // 不支持
+                    break
+                }
             }
             
             self.isOpen = false
@@ -75,8 +113,7 @@ class TCPViewController: UIViewController, StreamSocketDelegate, TCPClientDelega
             }else {
                 self.connectBtn.setTitle("Listen", for: .normal)
             }
-            self.logStr.append("end" + "\r")
-            self .refreshTextView(text: self.logStr)
+            self .showMessage(message: "end")
             
         }else {             // 未连接
             
@@ -85,27 +122,56 @@ class TCPViewController: UIViewController, StreamSocketDelegate, TCPClientDelega
                   let port = UInt32(portStr)
             else {
                 print("Format error")
-                self.logStr.append("Format error" + "\r")
-                self .refreshTextView(text: self.logStr)
+                self .showMessage(message: "Format error")
                 return
             }
             
             if self.isClientMode {      // client mode
 
-                if self.bStreamSocket {
-                    StreamSocket.shared.create(host: host, port: port)
-                }else {
+                switch tcpType {
+                case .GCD:
+                    do {
+                        try self.tcpClient?.connect(toHost: host, onPort: UInt16(port))
+                    } catch {
+                        print("connect error")
+                        return
+                    }
+                    break
+                case .BSD:
                     DispatchQueue.global().async {
                         TCPClient.sharedInstance().connect(withHost: host, port: Int32(port))   // host:服务端IP
                     }
+                    break
+                case .stream:
+                    StreamSocket.shared.create(host: host, port: port)
+                    break
                 }
                 
             } else {                    // server mode
                 
-                DispatchQueue.global().async {
-                    TCPServer.sharedInstance().listen(withHost: host, port: Int32(port))        // host:本机IP或者0.0.0.0
+                switch tcpType {
+                case .GCD:
+                    do {
+                        try self.tcpServer?.accept(onPort: UInt16(port))
+                    } catch {
+                        print("accept error")
+                        return
+                    }
+                    break
+                case .BSD:
+                    DispatchQueue.global().async {
+                        TCPServer.sharedInstance().listen(withHost: host, port: Int32(port))        // host:本机IP或者0.0.0.0
+                    }
+                    break
+                case .stream:
+                    // 不支持
+                    break
                 }
             }
+            
+            self.isOpen = true
+            self.sendBtn.isEnabled = true
+            self.connectBtn.setTitle("Stop", for: .normal)
         }
 
     }
@@ -115,21 +181,43 @@ class TCPViewController: UIViewController, StreamSocketDelegate, TCPClientDelega
         
         guard let message = self.messageTF.text, message.count > 0 else {
             print("messageTF Format error")
-            self.logStr.append("messageTF Format error" + "\r")
-            self .refreshTextView(text: self.logStr)
+            self .showMessage(message: "messageTF Format error")
             return
         }
         
         if self.isClientMode {      // client mode
 
-            if self.bStreamSocket {
-                StreamSocket.shared.send(data: message.data(using: .utf8)!)
-            }else {
+            switch tcpType {
+            case .GCD:
+                self.tcpClient?.write(message.data(using: .utf8), withTimeout: -1, tag: 0)
+                break
+            case .BSD:
                 TCPClient.sharedInstance().send(message.data(using: .utf8)!)
+                break
+            case .stream:
+                StreamSocket.shared.send(data: message.data(using: .utf8)!)
+                break
             }
             
         } else {                    // server mode
-            TCPServer.sharedInstance().send(message.data(using: .utf8)!)
+            
+            switch tcpType {
+            case .GCD:
+                guard self.tcpClients != nil,
+                      self.tcpClients!.count > 0 else {
+                    break
+                }
+                for tcpClient in self.tcpClients! {
+                    tcpClient?.write(message.data(using: .utf8), withTimeout: -1, tag: 0)
+                }
+                break
+            case .BSD:
+                TCPServer.sharedInstance().send(message.data(using: .utf8)!)
+                break
+            case .stream:
+                // 不支持
+                break
+            }
         }
     }
     
@@ -137,7 +225,7 @@ class TCPViewController: UIViewController, StreamSocketDelegate, TCPClientDelega
     @IBAction func cleanAction(_ sender: Any) {
         
         self.logStr = ""
-        self .refreshTextView(text: self.logStr)
+        self .showMessage(message: self.logStr)
     }
     
     
@@ -160,8 +248,7 @@ class TCPViewController: UIViewController, StreamSocketDelegate, TCPClientDelega
                     print("打开完毕")
                     self.isOpen = true
                     self.connectBtn.setTitle("Stop", for: .normal)
-                    self.logStr.append("open completed" + "\r")
-                    self .refreshTextView(text: self.logStr)
+                    self .showMessage(message: "open completed")
                     break
                     
                 case .hasBytesAvailable:    // 可读
@@ -171,8 +258,9 @@ class TCPViewController: UIViewController, StreamSocketDelegate, TCPClientDelega
                 case .hasSpaceAvailable:    // 可写
                     print("可写")
                     if self.sendBtn.isEnabled {
-                        self.logStr.append("send: " + (self.messageTF.text ?? "") + "\r")
-                        self .refreshTextView(text: self.logStr)
+                        if let message = self.messageTF.text {
+                            self.showMessage(message: "send: " + message)
+                        }
                     }
                     self.sendBtn.isEnabled = true
                     break
@@ -184,8 +272,7 @@ class TCPViewController: UIViewController, StreamSocketDelegate, TCPClientDelega
                     }else {
                         self.connectBtn.setTitle("Listen", for: .normal)
                     }
-                    self.logStr.append("error!" + "\r")
-                    self .refreshTextView(text: self.logStr)
+                    self.showMessage(message: "error!")
                     break
                     
                 case .endEncountered:       // 结束
@@ -197,8 +284,7 @@ class TCPViewController: UIViewController, StreamSocketDelegate, TCPClientDelega
                     }else {
                         self.connectBtn.setTitle("Listen", for: .normal)
                     }
-                    self.logStr.append("end" + "\r")
-                    self .refreshTextView(text: self.logStr)
+                    self.showMessage(message: "end")
                     break
                     
                 default:
@@ -213,9 +299,8 @@ class TCPViewController: UIViewController, StreamSocketDelegate, TCPClientDelega
     func received(data: Data) {
         
         DispatchQueue.main.async {
-            if let string = String.init(data: data, encoding: .utf8) {
-                self.logStr.append("receive: " + string + "\r")
-                self.refreshTextView(text: self.logStr)
+            if let message = String.init(data: data, encoding: .utf8) {
+                self.showMessage(message: "receive: " + message)
             }
         }
     }
@@ -224,8 +309,7 @@ class TCPViewController: UIViewController, StreamSocketDelegate, TCPClientDelega
     //MARK: - TCPClientDelegate
     func tcpClientEvent(_ event: TCPClientEvent, message: String) {
         DispatchQueue.main.async {
-            self.logStr.append(message + "\r")
-            self.refreshTextView(text: self.logStr)
+            self.showMessage(message: message)
             
             if event == .connected {
                 self.isOpen = true
@@ -239,8 +323,7 @@ class TCPViewController: UIViewController, StreamSocketDelegate, TCPClientDelega
     //MARK: - TCPServerDelegate
     func tcpServerEvent(_ event: TCPServerEvent, message: String) {
         DispatchQueue.main.async {
-            self.logStr.append(message + "\r")
-            self.refreshTextView(text: self.logStr)
+            self.showMessage(message: message)
             
             if event == .listen {
                 self.isOpen = true
@@ -256,13 +339,74 @@ class TCPViewController: UIViewController, StreamSocketDelegate, TCPClientDelega
     }
     
     
+    //MARK: - GCDAsyncSocketDelegate
+    
+    func socket(_ sock: GCDAsyncSocket, didAcceptNewSocket newSocket: GCDAsyncSocket) {
+        
+        self.tcpClients?.append(newSocket)
+        newSocket.readData(withTimeout: -1, tag: 0)
+        
+        DispatchQueue.main.async {
+            self.sendBtn.isEnabled = true
+            self.showMessage(message: "newSocket" + String(describing: newSocket))
+        }
+    }
+    
+    func socket(_ sock: GCDAsyncSocket, didConnectToHost host: String, port: UInt16) {
+        
+        sock.readData(withTimeout: -1, tag: 0)
+        
+        DispatchQueue.main.async {
+            self.isOpen = true
+            self.connectBtn.setTitle("Stop", for: .normal)
+            self.sendBtn.isEnabled = true
+            self.showMessage(message: "connected")
+        }
+    }
+
+    func socket(_ sock: GCDAsyncSocket, didRead data: Data, withTag tag: Int) {
+        
+        DispatchQueue.main.async {
+            if let message = String.init(data: data, encoding: .utf8) {
+                self.showMessage(message: "receive: " + message)
+                print("receive: " + message)
+            }
+        }
+        
+        sock.readData(withTimeout: -1, tag: 0)
+    }
+    
+    func socket(_ sock: GCDAsyncSocket, didWriteDataWithTag tag: Int) {
+        
+        DispatchQueue.main.async {
+            if let message = self.messageTF.text {
+                self.showMessage(message: "send: " + message)
+                print("send: " + message)
+            }
+        }
+    }
+
+    func socketDidDisconnect(_ sock: GCDAsyncSocket, withError err: Error?) {
+        
+        DispatchQueue.main.async {
+            let message = "error: " + String(describing: err)
+            self.showMessage(message: message)
+            print(message)
+            
+            if self.isOpen {
+                self.connectAction((Any).self)
+            }
+        }
+    }
+
+    
     //MARK: - private
     
     // 刷新textView
-    func refreshTextView(text: String) {
+    func showMessage(message: String) {
         
-        self.textView.text = text
+        self.logStr.append(message + "\r")
+        self.textView.text = self.logStr
         self.textView.scrollRangeToVisible(NSRange(location: self.textView.text.count, length: 1))
     }
-    
 }

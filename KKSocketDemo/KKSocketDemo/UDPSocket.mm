@@ -70,8 +70,8 @@ static UDPSocket *_singleInstance = nil;
     if (status < 0)
     {
         printf("Error enabling address reuse (setsockopt)");
-        if ([self.delegate respondsToSelector:@selector(showMessage:)]) {
-            [self.delegate showMessage:@"Error enabling address reuse (setsockopt)"];
+        if ([self.delegate respondsToSelector:@selector(UDPSocketEvent:message:)]) {
+            [self.delegate UDPSocketEvent:UDPSocketEvent_Message message:@"Error enabling address reuse (setsockopt)"];
         }
         close(socketFD);
         return;
@@ -81,26 +81,26 @@ static UDPSocket *_singleInstance = nil;
     if (ret < 0)
     {
         printf("error in sendto() function. ret=%ld \n", ret);
-        if ([self.delegate respondsToSelector:@selector(showMessage:)]) {
-            [self.delegate showMessage:@"error in sendto() function."];
+        if ([self.delegate respondsToSelector:@selector(UDPSocketEvent:message:)]) {
+            [self.delegate UDPSocketEvent:UDPSocketEvent_Message message:@"error in sendto() function."];
         }
         close(socketFD);
         return;
     }
     printf("send: %s \n", data.bytes);
-    if ([self.delegate respondsToSelector:@selector(showMessage:)]) {
-        [self.delegate showMessage:[NSString stringWithFormat:@"send: %s", data.bytes]];
+    if ([self.delegate respondsToSelector:@selector(UDPSocketEvent:message:)]) {
+        [self.delegate UDPSocketEvent:UDPSocketEvent_Message message:[NSString stringWithFormat:@"send: %s", data.bytes]];
     }
 }
 
 
 - (void)listen:(int)port {
 
-    int socketFD = socket(AF_INET, SOCK_DGRAM, 0);    // SOCK_STREAM为TCP，SOCK_DGRAM为UDP，SOCK_RAW为IP
-    if (socketFD < 0) {
+    self.socket_server = socket(AF_INET, SOCK_DGRAM, 0);    // SOCK_STREAM为TCP，SOCK_DGRAM为UDP，SOCK_RAW为IP
+    if (self.socket_server < 0) {
         perror("socket error \n");
-        if ([self.delegate respondsToSelector:@selector(showMessage:)]) {
-            [self.delegate showMessage:@"socket error \n"];
+        if ([self.delegate respondsToSelector:@selector(UDPSocketEvent:message:)]) {
+            [self.delegate UDPSocketEvent:UDPSocketEvent_ListenError message:@"socket error \n"];
         }
         return;
     }
@@ -111,14 +111,14 @@ static UDPSocket *_singleInstance = nil;
     addr.sin_port = htons(port);
     addr.sin_addr.s_addr = htonl(INADDR_ANY);     // 等价inet_addr("0.0.0.0");
     
-    int status = bind(socketFD, (sockaddr *)&addr, sizeof(addr));
+    int status = bind(self.socket_server, (sockaddr *)&addr, sizeof(addr));
     if (status < 0)
     {
         printf("error in bind() function \n");
-        if ([self.delegate respondsToSelector:@selector(showMessage:)]) {
-            [self.delegate showMessage:@"error in bind() function \n"];
+        if ([self.delegate respondsToSelector:@selector(UDPSocketEvent:message:)]) {
+            [self.delegate UDPSocketEvent:UDPSocketEvent_ListenError message:@"error in bind() function \n"];
         }
-        close(socketFD);
+        close(self.socket_server);
         return;
     }
     
@@ -126,13 +126,19 @@ static UDPSocket *_singleInstance = nil;
     while (1) {
         bzero(recv_msg, 1024);
         
-        long byte_num = recv(socketFD, recv_msg, 1024, 0);
+        long byte_num = recv(self.socket_server, recv_msg, 1024, 0);
         recv_msg[byte_num] = '\0';
         printf("receive: %s\n", recv_msg);
-        if ([self.delegate respondsToSelector:@selector(showMessage:)]) {
-            [self.delegate showMessage:[NSString stringWithFormat:@"receive: %s", recv_msg]];
+        if ([self.delegate respondsToSelector:@selector(UDPSocketEvent:message:)]) {
+            [self.delegate UDPSocketEvent:UDPSocketEvent_Message message:[NSString stringWithFormat:@"receive: %s", recv_msg]];
         }
     }
+}
+
+
+- (void)stop {
+    
+    close(self.socket_server);
 }
 
 @end

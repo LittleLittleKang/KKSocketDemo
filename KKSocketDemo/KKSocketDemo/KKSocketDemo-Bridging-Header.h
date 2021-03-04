@@ -6,3 +6,5 @@
 #import "Reachability.h"
 #import "TCPClient.h"
 #import "TCPServer.h"
+#import "GCDAsyncSocket.h"
+#import "GCDAsyncUdpSocket.h"

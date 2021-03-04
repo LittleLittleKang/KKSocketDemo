@@ -9,19 +9,25 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-@class UDPSocket;
+typedef NS_ENUM(NSInteger, UDPSocketEvent) {
+    UDPSocketEvent_ListenError,
+    UDPSocketEvent_Message,
+};
+
 @protocol UDPSocketDelegate <NSObject>
 @optional
-- (void)showMessage:(NSString *)message;
+- (void)UDPSocketEvent:(UDPSocketEvent)event message:(NSString *)message;
 @end
 
 @interface UDPSocket : NSObject
 
 @property (nonatomic, weak) id<UDPSocketDelegate>   delegate;
+@property (nonatomic, assign)   int socket_server;
 
 + (instancetype)sharedInstance;
 
 - (void)listen:(int)port;
+- (void)stop;
 - (void)send:(NSData *)data host:(NSString *)host port:(UInt16)port;
 
 @end

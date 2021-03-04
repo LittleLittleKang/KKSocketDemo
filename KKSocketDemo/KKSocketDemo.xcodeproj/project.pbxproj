@@ -18,6 +18,9 @@
 		3D8B495325EDC5DA00BEE7E8 /* UDPSocket.mm in Sources */ = {isa = PBXBuildFile; fileRef = 3D8B495225EDC5DA00BEE7E8 /* UDPSocket.mm */; };
 		3D8B495925EDD0B400BEE7E8 /* TCPServer.m in Sources */ = {isa = PBXBuildFile; fileRef = 3D8B495825EDD0B400BEE7E8 /* TCPServer.m */; };
 		3D8B495D25EDD0C400BEE7E8 /* TCPClient.m in Sources */ = {isa = PBXBuildFile; fileRef = 3D8B495C25EDD0C400BEE7E8 /* TCPClient.m */; };
+		3D8B497325EF2E0D00BEE7E8 /* Documentation.html in Resources */ = {isa = PBXBuildFile; fileRef = 3D8B496E25EF2E0D00BEE7E8 /* Documentation.html */; };
+		3D8B497425EF2E0D00BEE7E8 /* GCDAsyncUdpSocket.m in Sources */ = {isa = PBXBuildFile; fileRef = 3D8B496F25EF2E0D00BEE7E8 /* GCDAsyncUdpSocket.m */; };
+		3D8B497525EF2E0D00BEE7E8 /* GCDAsyncSocket.m in Sources */ = {isa = PBXBuildFile; fileRef = 3D8B497025EF2E0D00BEE7E8 /* GCDAsyncSocket.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -41,6 +44,11 @@
 		3D8B495825EDD0B400BEE7E8 /* TCPServer.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TCPServer.m; sourceTree = "<group>"; };
 		3D8B495B25EDD0C400BEE7E8 /* TCPClient.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = TCPClient.h; sourceTree = "<group>"; };
 		3D8B495C25EDD0C400BEE7E8 /* TCPClient.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TCPClient.m; sourceTree = "<group>"; };
+		3D8B496E25EF2E0D00BEE7E8 /* Documentation.html */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.html; path = Documentation.html; sourceTree = "<group>"; };
+		3D8B496F25EF2E0D00BEE7E8 /* GCDAsyncUdpSocket.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GCDAsyncUdpSocket.m; sourceTree = "<group>"; };
+		3D8B497025EF2E0D00BEE7E8 /* GCDAsyncSocket.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GCDAsyncSocket.m; sourceTree = "<group>"; };
+		3D8B497125EF2E0D00BEE7E8 /* GCDAsyncUdpSocket.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GCDAsyncUdpSocket.h; sourceTree = "<group>"; };
+		3D8B497225EF2E0D00BEE7E8 /* GCDAsyncSocket.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GCDAsyncSocket.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -76,6 +84,7 @@
 			children = (
 				3D3EC3D625ECFFDE003779F3 /* KKSocketDemo.entitlements */,
 				3D3EC3D825ED00BE003779F3 /* Reachability */,
+				3D8B496D25EF2E0D00BEE7E8 /* GCD */,
 				3D3B038F25E77C8300F7A497 /* AppDelegate.swift */,
 				3D3B03A525E78A0900F7A497 /* UDPViewController.swift */,
 				3D3B03A825E78A1500F7A497 /* TCPViewController.swift */,
@@ -110,6 +119,18 @@
 				3D3EC3DA25ED00BE003779F3 /* Reachability.h */,
 			);
 			path = Reachability;
+			sourceTree = "<group>";
+		};
+		3D8B496D25EF2E0D00BEE7E8 /* GCD */ = {
+			isa = PBXGroup;
+			children = (
+				3D8B496E25EF2E0D00BEE7E8 /* Documentation.html */,
+				3D8B497225EF2E0D00BEE7E8 /* GCDAsyncSocket.h */,
+				3D8B497025EF2E0D00BEE7E8 /* GCDAsyncSocket.m */,
+				3D8B497125EF2E0D00BEE7E8 /* GCDAsyncUdpSocket.h */,
+				3D8B496F25EF2E0D00BEE7E8 /* GCDAsyncUdpSocket.m */,
+			);
+			path = GCD;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -173,6 +194,7 @@
 				3D3B039C25E77C8600F7A497 /* LaunchScreen.storyboard in Resources */,
 				3D3B039925E77C8600F7A497 /* Assets.xcassets in Resources */,
 				3D3B039725E77C8300F7A497 /* Main.storyboard in Resources */,
+				3D8B497325EF2E0D00BEE7E8 /* Documentation.html in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -184,10 +206,12 @@
 			buildActionMask = 2147483647;
 			files = (
 				3D8B495925EDD0B400BEE7E8 /* TCPServer.m in Sources */,
+				3D8B497425EF2E0D00BEE7E8 /* GCDAsyncUdpSocket.m in Sources */,
 				3D8B495325EDC5DA00BEE7E8 /* UDPSocket.mm in Sources */,
 				3D3B03B125E87E7F00F7A497 /* StreamSocket.swift in Sources */,
 				3D3B03A925E78A1500F7A497 /* TCPViewController.swift in Sources */,
 				3D8B495D25EDD0C400BEE7E8 /* TCPClient.m in Sources */,
+				3D8B497525EF2E0D00BEE7E8 /* GCDAsyncSocket.m in Sources */,
 				3D3EC3DB25ED00BE003779F3 /* Reachability.m in Sources */,
 				3D3B039025E77C8300F7A497 /* AppDelegate.swift in Sources */,
 				3D3B03A625E78A0900F7A497 /* UDPViewController.swift in Sources */,
